@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -36,9 +36,9 @@ export function findMeshNode(nodes, name) {
   if (nodes[sanitized]) return nodes[sanitized];
   const withUnderscore = name.replace(/\s+/g, '_');
   if (nodes[withUnderscore]) return nodes[withUnderscore];
-  const lower = name.toLowerCase().replace(/[\s\._]/g, '');
+  const lower = name.toLowerCase().replace(/[\s._]/g, '');
   for (const [k, v] of Object.entries(nodes)) {
-    if (k.toLowerCase().replace(/[\s\._]/g, '') === lower) {
+    if (k.toLowerCase().replace(/[\s._]/g, '') === lower) {
       return v;
     }
   }
@@ -121,7 +121,7 @@ export function EngineModel({ telemetry }) {
           map[sanitized] = child;
           const withUnderscore = rawName.replace(/\s+/g, '_');
           map[withUnderscore] = child;
-          const lower = rawName.toLowerCase().replace(/[\s\._]/g, '');
+          const lower = rawName.toLowerCase().replace(/[\s._]/g, '');
           map[lower] = child;
         }
       }

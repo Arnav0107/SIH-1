@@ -503,6 +503,19 @@ class EngineSimulationService:
         self.reset()
 
     def _train_ml_models(self):
+        cache_path = os.path.join(BASE_DIR, "ml_models_cache.pkl")
+        if os.path.exists(cache_path):
+            try:
+                import pickle
+                with open(cache_path, "rb") as f:
+                    cached = pickle.load(f)
+                    self.autoencoder = cached["autoencoder"]
+                    self.classifier = cached["classifier"]
+                logger.info(f"[ML Startup] Loaded pre-trained models from cache: {cache_path}")
+                return
+            except Exception as e:
+                logger.warning(f"[ML Startup] Cache load failed ({e}), retraining models...")
+
         df = self.dataset
         df_normal = df[df["injected_fault_type"] == "none"]
         logger.info(f"[ML Startup] Training AutoencoderAnomalyDetector (Layer 3) on {len(df_normal)} healthy baseline samples...")
@@ -514,6 +527,17 @@ class EngineSimulationService:
         self.classifier = MultiClassFaultClassifier()
         self.classifier.fit(df)
         logger.info(f"[ML Startup] MultiClassFaultClassifier fitted. Classes ({len(self.classifier.model.classes_)}): {list(self.classifier.model.classes_)}")
+
+        try:
+            import pickle
+            with open(cache_path, "wb") as f:
+                pickle.dump({
+                    "autoencoder": self.autoencoder,
+                    "classifier": self.classifier,
+                }, f)
+            logger.info(f"[ML Startup] Saved trained models to cache: {cache_path}")
+        except Exception as e:
+            logger.warning(f"[ML Startup] Failed to write model cache: {e}")
 
     def start(self):
         if self._task is None or self._task.done():

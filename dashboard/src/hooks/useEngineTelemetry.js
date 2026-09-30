@@ -1,7 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-export const API_BASE = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8000/ws/engine';
+export const API_BASE = (
+  import.meta.env.VITE_API_BASE ||
+  (typeof window !== 'undefined' && window.location.port !== '5173' && window.location.port !== '3000'
+    ? window.location.origin
+    : 'http://localhost:8000')
+).replace(/\/+$/, '');
+
+function getWebSocketUrl() {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  if (typeof window !== 'undefined' && window.location.port !== '5173' && window.location.port !== '3000') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws/engine`;
+  }
+  return 'ws://localhost:8000/ws/engine';
+}
+
+const WS_URL = getWebSocketUrl();
 const RECONNECT_DELAY_MS = 2000;
 
 export function useEngineTelemetry() {
@@ -11,8 +28,9 @@ export function useEngineTelemetry() {
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const isMountedRef = useRef(true);
+  const connectRef = useRef(null);
 
-  const connect = useCallback(() => {
+  connectRef.current = () => {
     if (!isMountedRef.current) return;
 
     try {
@@ -48,18 +66,22 @@ export function useEngineTelemetry() {
         setTelemetry(null);
         console.log(`[useEngineTelemetry] WebSocket closed (code ${event.code}). Reconnecting in ${RECONNECT_DELAY_MS}ms...`);
         clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        reconnectTimerRef.current = setTimeout(() => {
+          connectRef.current?.();
+        }, RECONNECT_DELAY_MS);
       };
     } catch (err) {
       console.error('[useEngineTelemetry] Error creating WebSocket:', err);
       clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      reconnectTimerRef.current = setTimeout(() => {
+        connectRef.current?.();
+      }, RECONNECT_DELAY_MS);
     }
-  }, []);
+  };
 
   useEffect(() => {
     isMountedRef.current = true;
-    connect();
+    connectRef.current?.();
 
     return () => {
       isMountedRef.current = false;
