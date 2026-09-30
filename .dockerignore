@@ -1,0 +1,14 @@
+.git
+.agents
+.github
+.gitignore
+.git_backup
+node_modules
+dashboard/node_modules
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env*
+.DS_Store
+*.log

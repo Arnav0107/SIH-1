@@ -1391,6 +1391,21 @@ def get_mission_replay():
     return {"samples": len(rows), "data": rows}
 
 # ============================================================================
+# Health Check Endpoint
+# ============================================================================
+
+@app.get("/health")
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Rotax 914 MALE UAV Digital Twin",
+        "version": "1.1.0",
+        "sim_mode": sim_service.sim_mode,
+        "is_running": sim_service.is_running,
+    }
+
+# ============================================================================
 # Static Files & Dashboard UI
 # ============================================================================
 
@@ -1398,18 +1413,30 @@ static_dir = os.path.join(BASE_DIR, "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-@app.get("/")
-def get_index():
-    index_file = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file)
-    return JSONResponse({
-        "message": "Rotax 914 MALE UAV Digital Twin WebSocket Server Running",
-        "websocket_endpoint": "/ws/engine",
-        "api_status": "/api/status",
-        "docs": "/docs"
-    })
+dashboard_dist_dir = os.environ.get(
+    "DASHBOARD_DIST_DIR",
+    os.path.abspath(os.path.join(BASE_DIR, "..", "dashboard", "dist")),
+)
+
+if os.path.isdir(dashboard_dist_dir) and os.path.exists(os.path.join(dashboard_dist_dir, "index.html")):
+    logger.info(f"Serving production React dashboard from: {dashboard_dist_dir}")
+    app.mount("/", StaticFiles(directory=dashboard_dist_dir, html=True), name="frontend")
+else:
+    @app.get("/")
+    def get_index():
+        index_file = os.path.join(static_dir, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        return JSONResponse({
+            "message": "Rotax 914 MALE UAV Digital Twin WebSocket Server Running",
+            "websocket_endpoint": "/ws/engine",
+            "api_status": "/api/status",
+            "docs": "/docs"
+        })
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "8000"))
+    logger.info(f"Starting Digital Twin Server on {host}:{port}")
+    uvicorn.run(app, host=host, port=port)

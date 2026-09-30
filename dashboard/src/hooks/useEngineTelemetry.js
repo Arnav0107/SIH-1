@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const API_BASE = (
   import.meta.env.VITE_API_BASE ||
@@ -28,9 +28,8 @@ export function useEngineTelemetry() {
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const isMountedRef = useRef(true);
-  const connectRef = useRef(null);
 
-  connectRef.current = () => {
+  const connect = useCallback(() => {
     if (!isMountedRef.current) return;
 
     try {
@@ -66,22 +65,18 @@ export function useEngineTelemetry() {
         setTelemetry(null);
         console.log(`[useEngineTelemetry] WebSocket closed (code ${event.code}). Reconnecting in ${RECONNECT_DELAY_MS}ms...`);
         clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = setTimeout(() => {
-          connectRef.current?.();
-        }, RECONNECT_DELAY_MS);
+        reconnectTimerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
       };
     } catch (err) {
       console.error('[useEngineTelemetry] Error creating WebSocket:', err);
       clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = setTimeout(() => {
-        connectRef.current?.();
-      }, RECONNECT_DELAY_MS);
+      reconnectTimerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
     }
-  };
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
-    connectRef.current?.();
+    connect();
 
     return () => {
       isMountedRef.current = false;
@@ -90,7 +85,7 @@ export function useEngineTelemetry() {
         wsRef.current.close();
       }
     };
-  }, [connect]);
+  }, []);
 
   const sendCommand = useCallback((commandObject) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
